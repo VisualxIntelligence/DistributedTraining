@@ -17,38 +17,33 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
+import json
 import math
 import random
 import time
-from typing import List
+from datetime import datetime
 
 import base58
 import bittensor as bt
 import numpy as np
+import pytz
 import torch
 import torch.nn.functional as F
 from hivemind.p2p import PeerID
-from huggingface_hub import list_repo_commits
-from transformers import AutoModelForCausalLM
+from huggingface_hub import hf_hub_download, list_repo_commits, list_repo_files
+from transformers import AutoConfig, AutoModelForCausalLM
 
+from distributed_training import __run__
 from distributed_training.data.dataset import DatasetLoader
+from distributed_training.utils.progress_tracker import (
+    get_local_epoch,
+    get_local_inner_step,
+)
 from distributed_training.utils.state_loader import (
     check_model_exists,
     cleanup_old_cache,
     load_state_from_peer,
 )
-from distributed_training.utils.progress_tracker import (
-    get_local_epoch,
-    get_local_inner_step,
-)
-from distributed_training import __run__
-
-from datetime import datetime
-import pytz
-from huggingface_hub import list_repo_commits
-from transformers import AutoConfig
-from huggingface_hub import hf_hub_download, list_repo_files
-import json
 
 # GPU optimizations.
 torch.backends.cudnn.benchmark = True
@@ -417,7 +412,7 @@ def score_repo(self, repo_id: str) -> bool:
         ):
             return False
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -435,7 +430,7 @@ def benchmark_uids(self):
                     self.uid_tracker[uid]["repo_valid_score"] = 0
                 else:
                     self.uid_tracker[uid]["repo_valid_score"] = 1
-            except Exception as e:
+            except Exception:
                 self.uid_tracker[uid]["repo_valid_score"] = 0
         else:
             self.uid_tracker[uid]["repo_valid_score"] = 0
@@ -538,3 +533,6 @@ def update_total_scores(self):
             uid_data["total_score"] = (
                 normalized_train_score + normalized_all_reduce_score
             )
+
+    # Add metrics reporting
+    self.report_scoring_metrics()
